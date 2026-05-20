@@ -10,21 +10,12 @@ if [[ -n "${NODE_AUTH_TOKEN:-}" ]]; then
     printf '//registry.npmjs.org/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > ~/.npmrc
 fi
 
-if [[ "$PUSH" == "1" && "$GITHUB_RELEASE" == "1" ]] && ! command -v gh >/dev/null; then
-    echo "Creating a GitHub release requires the GitHub CLI. Install gh or set GITHUB_RELEASE=0." >&2
-    exit 1
-fi
-
 pnpm install --frozen-lockfile
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "Release requires a clean git working tree." >&2
     exit 1
 fi
-
-pnpm run lint
-pnpm test
-pnpm run build
 
 if [[ "$PUSH" == "1" ]]; then
     git fetch --tags origin
@@ -36,10 +27,25 @@ if [[ -z "$VERSION" ]]; then
     exit 1
 fi
 
+LATEST_VERSION="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+if [[ -n "$LATEST_VERSION" && "$VERSION" == "$LATEST_VERSION" ]]; then
+    echo "No releasable changes since ${LATEST_VERSION}; skipping release."
+    exit 0
+fi
+
 if git rev-parse --verify --quiet "$VERSION" >/dev/null; then
     echo "Version ${VERSION} already exists." >&2
     exit 1
 fi
+
+if [[ "$PUSH" == "1" && "$GITHUB_RELEASE" == "1" ]] && ! command -v gh >/dev/null; then
+    echo "Creating a GitHub release requires the GitHub CLI. Install gh or set GITHUB_RELEASE=0." >&2
+    exit 1
+fi
+
+pnpm run lint
+pnpm test
+pnpm run build
 
 PACKAGE_VERSION="${VERSION#v}"
 node - "$PACKAGE_VERSION" <<'NODE'
