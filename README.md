@@ -1,6 +1,6 @@
 # ReSub
 
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/Microsoft/ReSub/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/resub.svg?style=flat-square)](https://www.npmjs.com/package/resub) [![npm downloads](https://img.shields.io/npm/dm/resub.svg?style=flat-square)](https://www.npmjs.com/package/resub) [![Build Status](https://img.shields.io/travis/Microsoft/ReSub/master.svg?style=flat-square)](https://travis-ci.org/Microsoft/ReSub) [![David](https://img.shields.io/david/Microsoft/ReSub.svg?style=flat-square)](https://github.com/Microsoft/ReSub) [![David](https://img.shields.io/david/dev/Microsoft/ReSub.svg?style=flat-square)](https://github.com/Microsoft/ReSub)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/Microsoft/ReSub/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/@boatkit-io/resub.svg?style=flat-square)](https://www.npmjs.com/package/@boatkit-io/resub) [![npm downloads](https://img.shields.io/npm/dm/@boatkit-io/resub.svg?style=flat-square)](https://www.npmjs.com/package/@boatkit-io/resub) [![Build Status](https://img.shields.io/travis/Microsoft/ReSub/master.svg?style=flat-square)](https://travis-ci.org/Microsoft/ReSub) [![David](https://img.shields.io/david/Microsoft/ReSub.svg?style=flat-square)](https://github.com/Microsoft/ReSub) [![David](https://img.shields.io/david/dev/Microsoft/ReSub.svg?style=flat-square)](https://github.com/Microsoft/ReSub)
 
 A library for writing better React components and data stores. Uses automatic subscriptions to reduce code and avoid common data flow pitfalls. Scales for projects of all sizes and works great with TypeScript.
 
@@ -29,7 +29,7 @@ The heavy lifting in ReSub is done mostly within two classes, `ComponentBase` an
 First, we create a store to hold todos:
 
 ```typescript
-import { StoreBase, AutoSubscribeStore, autoSubscribe } from 'resub';
+import { StoreBase, AutoSubscribeStore, autoSubscribe } from '@boatkit-io/resub';
 
 @AutoSubscribeStore
 class TodosStore extends StoreBase {
@@ -54,7 +54,7 @@ Next, we create a component to display the todos:
 
 ```typescript
 import * as React from 'react';
-import { ComponentBase } from 'resub';
+import { ComponentBase } from '@boatkit-io/resub';
 
 import TodosStore = require('./TodosStore');
 
@@ -203,7 +203,7 @@ We've added a new hook-like mechanism to ReSub in 2.3.  It uses hooks under the 
 
 ```typescript
 import * as React from 'react';
-import { withResubAutoSubscriptions } from 'resub';
+import { withResubAutoSubscriptions } from '@boatkit-io/resub';
 
 import TodosStore = require('./TodosStore');
 
@@ -425,10 +425,10 @@ You'll also need to install `@babel/plugin-proposal-decorators`.
 
 ## ESLint rules
 
-ReSub includes an ESLint flat-config plugin for common ReSub usage issues. It is published at `resub/eslint/index.mjs`.
+ReSub includes an ESLint flat-config plugin for common ReSub usage issues. It is published at `@boatkit-io/resub/eslint/index.mjs`.
 
 ```js
-import resub from 'resub/eslint/index.mjs';
+import resub from '@boatkit-io/resub/eslint/index.mjs';
 
 export default [
     {

@@ -1,5 +1,5 @@
 {
-  "name": "resub",
+  "name": "@boatkit-io/resub",
   "version": "2.3.2",
   "description": "A library for writing React components that automatically manage subscriptions to data sources simply by accessing them.",
   "author": "ReactXP Team <reactxp@microsoft.com>",

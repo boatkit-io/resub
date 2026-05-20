@@ -2,7 +2,7 @@ import {
     AutoSubscribeStore,
     autoSubscribe,
     StoreBase,
-} from 'resub';
+} from '@boatkit-io/resub';
 
 @AutoSubscribeStore
 class CounterStore extends StoreBase {

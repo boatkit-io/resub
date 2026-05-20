@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ReactElement } from 'react';
-import { ComponentBase } from 'resub';
+import { ComponentBase } from '@boatkit-io/resub';
 import CounterStore from './Counter.store';
 
 export interface CounterProps {}
