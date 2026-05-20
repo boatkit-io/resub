@@ -407,6 +407,22 @@ ReSub uses the standard decorator model supported by TypeScript 5 and newer. Do 
 
 Standard decorators do not support parameter decorators. Code that previously used `getTodosForUser(@key username: string)` should move `@key` onto the method and pass argument indexes, e.g. `@key(0)` or `@key(0, 1)`.
 
+## Using ReSub with Vite
+
+Vite's default TypeScript pipeline does not transform standard decorators before running React transforms. ReSub exports a small Vite plugin that runs TypeScript's standard-decorator transform for decorated TypeScript files:
+
+```ts
+import { defineConfig } from 'vite'
+import { standardDecorators } from '@boatkit-io/resub/vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [standardDecorators(), react()],
+})
+```
+
+Put `standardDecorators()` before React plugins. The plugin uses the `typescript` package from your Vite project, so make sure `typescript` is installed.
+
 ## Using ReSub Without TypeScript
 
 It is fine to use ReSub without TypeScript, but without access to TypeScript’s method decorators, stores and components cannot leverage autosubscriptions, and as such, lose a lot of their value.

@@ -19,7 +19,13 @@
     "tslib": "2.8.1"
   },
   "peerDependencies": {
-    "react": ">=16.11.0"
+    "react": ">=16.11.0",
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -50,6 +56,31 @@
   "types": "dist-types/ReSub.d.ts",
   "module": "dist-es2015/ReSub.js",
   "main": "dist/ReSub.js",
+  "exports": {
+    ".": {
+      "types": "./dist-types/ReSub.d.ts",
+      "module": "./dist-es2015/ReSub.js",
+      "import": "./dist/ReSub.js",
+      "require": "./dist/ReSub.js",
+      "default": "./dist/ReSub.js"
+    },
+    "./vite": {
+      "types": "./dist-types/Vite.d.ts",
+      "module": "./dist-es2015/Vite.js",
+      "import": "./dist/Vite.js",
+      "require": "./dist/Vite.js",
+      "default": "./dist/Vite.js"
+    },
+    "./vite.js": {
+      "types": "./dist-types/Vite.d.ts",
+      "module": "./dist-es2015/Vite.js",
+      "import": "./dist/Vite.js",
+      "require": "./dist/Vite.js",
+      "default": "./dist/Vite.js"
+    },
+    "./eslint/index.mjs": "./eslint/index.mjs",
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "dist-es2015",
