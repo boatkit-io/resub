@@ -1,6 +1,8 @@
 [tools]
+go = "1.26.3"
 node = "lts"
 pnpm = "11.1.3"
+"go:github.com/thenativeweb/get-next-version" = "v0.0.0-20260427193751-283f693d1042"
 
 [tasks.install]
 description = "Install workspace dependencies"
@@ -22,6 +24,10 @@ run = [
     "pnpm --dir examples/async run build",
 ]
 
+[tasks.next-version]
+description = "Get the version number that would be released from the current git history"
+run = "get-next-version --prefix v 2> /dev/null | tr -d '\\n'"
+
 [tasks.release]
-description = "Bump the package version, tag it, and publish to npm. Set BUMP=minor or BUMP=major to override patch."
+description = "Calculate the next semantic version, tag it, and publish to npm"
 run = "scripts/release.sh"

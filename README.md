@@ -396,9 +396,10 @@ Useful local tasks:
 - `mise run lint`
 - `mise run test`
 - `mise run build`
-- `BUMP=patch mise run release`
+- `mise -q run next-version`
+- `mise run release`
 
-The release task requires a clean git working tree, bumps `package.json`, updates `pnpm-lock.yaml`, creates a release commit and tag, pushes them, and publishes to npm. Set `BUMP=minor`, `BUMP=major`, or an exact semver version to override the default patch bump. Set `PUSH=0` to skip pushing the release commit and tag.
+The release task requires a clean git working tree, calculates the next semantic version from conventional commits with `get-next-version`, updates `package.json` and `pnpm-lock.yaml`, creates a release commit and tag, pushes them, and publishes to npm. Set `PUSH=0` to skip pushing the release commit and tag.
 
 ## Using ReSub with TypeScript
 
