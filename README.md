@@ -399,7 +399,7 @@ Useful local tasks:
 - `mise -q run next-version`
 - `mise run release`
 
-The release task requires a clean git working tree, calculates the next semantic version from conventional commits with `get-next-version`, updates `package.json` and `pnpm-lock.yaml`, creates a release commit and tag, pushes them, and publishes to npm. Set `PUSH=0` to skip pushing the release commit and tag.
+The release task requires a clean git working tree, calculates the next semantic version from conventional commits with `get-next-version`, updates `package.json` and `pnpm-lock.yaml`, creates a release commit and tag, pushes them, publishes to npm, and creates a GitHub release with generated notes. Set `PUSH=0` to skip pushing the release commit and tag. Set `GITHUB_RELEASE=0` to skip creating the GitHub release.
 
 ## Using ReSub with TypeScript
 

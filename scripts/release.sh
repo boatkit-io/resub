@@ -2,11 +2,17 @@
 set -euo pipefail
 
 PUSH="${PUSH:-1}"
+GITHUB_RELEASE="${GITHUB_RELEASE:-$PUSH}"
 RELEASE_BRANCH="${RELEASE_BRANCH:-main}"
 PUBLISH_FLAGS="${PUBLISH_FLAGS:---access public --no-git-checks}"
 
 if [[ -n "${NODE_AUTH_TOKEN:-}" ]]; then
     printf '//registry.npmjs.org/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > ~/.npmrc
+fi
+
+if [[ "$PUSH" == "1" && "$GITHUB_RELEASE" == "1" ]] && ! command -v gh >/dev/null; then
+    echo "Creating a GitHub release requires the GitHub CLI. Install gh or set GITHUB_RELEASE=0." >&2
+    exit 1
 fi
 
 pnpm install --frozen-lockfile
@@ -58,3 +64,7 @@ if [[ "$PUSH" == "1" ]]; then
 fi
 
 pnpm publish ${PUBLISH_FLAGS}
+
+if [[ "$PUSH" == "1" && "$GITHUB_RELEASE" == "1" ]]; then
+    gh release create "${VERSION}" --verify-tag --title "${VERSION}" --generate-notes
+fi

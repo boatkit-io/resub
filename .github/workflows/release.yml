@@ -39,6 +39,7 @@ jobs:
 
       - name: Release
         env:
+          GH_TOKEN: ${{ github.token }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PUSH: "1"
         run: scripts/release.sh
