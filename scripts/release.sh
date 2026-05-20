@@ -4,7 +4,7 @@ set -euo pipefail
 BUMP="${BUMP:-patch}"
 PUSH="${PUSH:-1}"
 RELEASE_BRANCH="${RELEASE_BRANCH:-main}"
-PUBLISH_FLAGS="${PUBLISH_FLAGS:---access public --provenance --no-git-checks}"
+PUBLISH_FLAGS="${PUBLISH_FLAGS:---access public --no-git-checks}"
 
 if [[ -n "${NODE_AUTH_TOKEN:-}" ]]; then
     printf '//registry.npmjs.org/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > ~/.npmrc
