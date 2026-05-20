@@ -1,6 +1,6 @@
 # ReSub
 
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/Microsoft/ReSub/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/@boatkit-io/resub.svg?style=flat-square)](https://www.npmjs.com/package/@boatkit-io/resub) [![npm downloads](https://img.shields.io/npm/dm/@boatkit-io/resub.svg?style=flat-square)](https://www.npmjs.com/package/@boatkit-io/resub) [![Build Status](https://img.shields.io/travis/Microsoft/ReSub/master.svg?style=flat-square)](https://travis-ci.org/Microsoft/ReSub) [![David](https://img.shields.io/david/Microsoft/ReSub.svg?style=flat-square)](https://github.com/Microsoft/ReSub) [![David](https://img.shields.io/david/dev/Microsoft/ReSub.svg?style=flat-square)](https://github.com/Microsoft/ReSub)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/boatkit-io/resub/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/@boatkit-io/resub.svg?style=flat-square)](https://www.npmjs.com/package/@boatkit-io/resub) [![npm downloads](https://img.shields.io/npm/dm/@boatkit-io/resub.svg?style=flat-square)](https://www.npmjs.com/package/@boatkit-io/resub)
 
 A library for writing better React components and data stores. Uses automatic subscriptions to reduce code and avoid common data flow pitfalls. Scales for projects of all sizes and works great with TypeScript.
 
