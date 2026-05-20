@@ -44,7 +44,7 @@ export class Instrumentation {
 
         try {
             this._perf.measure(measureName, beginMark, endMark);
-        } catch (e) {
+        } catch {
             // We might be missing some marks if something would go south
             // at call site and in next attempt measure() will throw
             // an exception which may be misleading and could cover real

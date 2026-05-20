@@ -19,6 +19,12 @@ interface InternalState {
     _resubDirty: boolean;
 }
 
+const componentBaseAutoSubscribeHandler = {
+    handle(self: any, store: StoreBase, key: string) {
+        self._handleAutoSubscribe(store, key);
+    },
+};
+
 // ComponentBase actually has InternalState, but we don't want this exposed, so don't indicate that on the component definition
 export abstract class ComponentBase<P = {}, S = {}> extends React.Component<P, S> {
     // ComponentBase is provided a method to wrap autosubscriptions via _buildState in a component
@@ -41,7 +47,6 @@ export abstract class ComponentBase<P = {}, S = {}> extends React.Component<P, S
                 } catch (e) {
                     // Annoy devs so this gets fixed.
                     if (Options.development) {
-                        // tslint:disable-next-line
                         throw e;
                     }
 
@@ -141,7 +146,7 @@ export abstract class ComponentBase<P = {}, S = {}> extends React.Component<P, S
         ComponentBase._onAutoSubscriptionChangedUnbound(this as any);
     };
 
-    private _handleAutoSubscribe(store: StoreBase, key: string): void {
+    protected _handleAutoSubscribe(store: StoreBase, key: string): void {
         // Check for an existing auto-subscription.
         const autoSubscription = this._findMatchingAutoSubscription(store, key);
         if (autoSubscription) {
@@ -170,15 +175,7 @@ export abstract class ComponentBase<P = {}, S = {}> extends React.Component<P, S
         ));
     }
 
-    // Handler for enableAutoSubscribe that does the actual auto-subscription work.
-    private static _autoSubscribeHandler = {
-        // Callback to handle the 'auto-subscribe'.
-        handle(self: ComponentBase<any, any>, store: StoreBase, key: string) {
-            self._handleAutoSubscribe(store, key);
-        },
-    };
-
-    @enableAutoSubscribe(ComponentBase._autoSubscribeHandler)
+    @enableAutoSubscribe(componentBaseAutoSubscribeHandler)
     private _buildStateWithAutoSubscriptions(props: P, incomingState: undefined | Readonly<S>, initialBuild: boolean):
     Partial<S> | undefined {
         for (const sub of this._handledAutoSubscriptions) {

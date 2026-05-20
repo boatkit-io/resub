@@ -6,21 +6,20 @@
  * Tests all the various expected behavior of StoreBase.
  */
 
-import { mount } from 'enzyme';
-import * as React from 'react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
+import { vi } from 'vitest';
 
 import { ComponentBase } from '../src/ComponentBase';
 import { StoreBase } from '../src/StoreBase';
 import Options from '../src/Options';
 import { AutoSubscribeStore, autoSubscribeWithKey, autoSubscribe } from '../src/AutoSubscriptions';
 
+import { cleanupReactTestComponents, mountComponent } from './ReactTestUtils';
+
 type TKeys = string[] | undefined;
 
 class BraindeadStore extends StoreBase {
-    // eslint-disable-next-line
     Key_Something = 'abc';
-    // eslint-disable-next-line
     Key_Something2 = 'def';
 
     foundAll = false;
@@ -67,6 +66,8 @@ class TriggerableStore extends StoreBase {
 //       or in some other file.
 
 describe('StoreBase', function() {
+    afterEach(cleanupReactTestComponents);
+
     it('Non-timed/Non-bypass Store', () => {
         const store = new BraindeadStore(0, false);
         store.setupSubs();
@@ -156,8 +157,8 @@ describe('StoreBase', function() {
 
     describe('Timing mocking', () => {
         beforeEach(() => {
-            jasmine.clock().install();
-            jasmine.clock().mockDate(new Date());
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date());
 
             // Setup setTimeout/clearTimeout to respect clock mocking
             Options.setTimeout = setTimeout.bind(null);
@@ -165,7 +166,7 @@ describe('StoreBase', function() {
         });
 
         afterEach(() => {
-            jasmine.clock().uninstall();
+            vi.useRealTimers();
             Options.setTimeout = setTimeout.bind(null);
             Options.clearTimeout = clearTimeout.bind(null);
         });
@@ -178,10 +179,10 @@ describe('StoreBase', function() {
             store.emitAll();
             expect(store.foundAll).toBeFalsy();
 
-            jasmine.clock().tick(10);
+            vi.advanceTimersByTime(10);
             expect(store.foundAll).toBe(false);
 
-            jasmine.clock().tick(90);
+            vi.advanceTimersByTime(90);
             expect(store.foundAll).toBeTruthy();
         });
 
@@ -200,7 +201,7 @@ describe('StoreBase', function() {
             store.emitAll();
 
             expect(callbackCount).toBe(0);
-            jasmine.clock().tick(100);
+            vi.advanceTimersByTime(100);
             expect(callbackCount).toBe(1);
         });
 
@@ -225,7 +226,7 @@ describe('StoreBase', function() {
             expect(callbackCount).toBe(1);
 
             // At this point the throttled store has no need to trigger since the callback has already been called
-            jasmine.clock().tick(200);
+            vi.advanceTimersByTime(200);
             expect(callbackCount).toBe(1);
         });
     });
@@ -261,7 +262,8 @@ describe('StoreBase', function() {
         const store = new TriggerableStore();
         let callbackCalled = false;
         const subCallback = (keys?: string[]): void => {
-            expect(keys!!!.length).toEqual(150001);
+            expect(keys).toBeDefined();
+            expect((keys || []).length).toEqual(150001);
             callbackCalled = true;
         };
 
@@ -323,7 +325,7 @@ describe('StoreBase', function() {
         expect(s.getKeyCalls).toEqual(0);
         expect(s.getCalls).toEqual(0);
         expect(s.subCount).toEqual(0);
-        const wrapper = mount(<DumbComp s={ s } />);
+        const wrapper = mountComponent<{s: KeyStore}, {}, DumbComp>(DumbComp, { s });
         expect(s.getKeyCalls).toEqual(1);
         expect(s.getCalls).toEqual(1);
         expect(s.subCount).toEqual(2);

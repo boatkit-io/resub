@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { SFC } from 'react';
+import { FC } from 'react';
 
 interface AnswerProps {
     disabled: boolean;
@@ -8,7 +8,7 @@ interface AnswerProps {
     error: string;
 }
 
-export const Answer: SFC<AnswerProps> = ({
+export const Answer: FC<AnswerProps> = ({
     disabled,
     answer,
     image,

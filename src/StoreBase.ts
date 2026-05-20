@@ -32,7 +32,7 @@ type CallbackMap = Map<SubscriptionCallbackFunction, CallbackMetadata>;
 
 export abstract class StoreBase {
     private static _storeIdCounter = 0;
-    // eslint-disable-next-line
+
     static readonly Key_All = '%!$all';
 
     private readonly _subscriptions: Map<string, SubscriptionCallbackFunction[]> = new Map();

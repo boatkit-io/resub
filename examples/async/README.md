@@ -1,6 +1,7 @@
 # ReSub Async Example
 
-### NPM tasks
-- `npm run build`      - starts production build *(puts result to `dist` folder)*
-- `npm run start`      - starts local web server
-- `npm run start:prod` - starts production build and run local web server
+### pnpm tasks
+- `pnpm install`        - installs the workspace dependencies
+- `pnpm run build`      - starts production build *(puts result to `dist` folder)*
+- `pnpm run start`      - starts the webpack development server
+- `pnpm run start:prod` - starts production build and runs local web server

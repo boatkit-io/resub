@@ -1,0 +1,27 @@
+[tools]
+node = "lts"
+pnpm = "11.1.3"
+
+[tasks.install]
+description = "Install workspace dependencies"
+run = "pnpm install"
+
+[tasks.lint]
+description = "Run ESLint"
+run = "pnpm run lint"
+
+[tasks.test]
+description = "Run the test suite"
+run = "pnpm test"
+
+[tasks.build]
+description = "Build the package and examples"
+run = [
+    "pnpm run build",
+    "pnpm --dir examples/counter run build",
+    "pnpm --dir examples/async run build",
+]
+
+[tasks.release]
+description = "Bump the package version, tag it, and publish to npm. Set BUMP=minor or BUMP=major to override patch."
+run = "scripts/release.sh"

@@ -1,8 +1,9 @@
 {
-  "extends": "../tsconfig",
+  "extends": "../tsconfig.json",
   "compilerOptions": {
+    "rootDir": "..",
     "sourceMap": true,
-    "types": ["jasmine"]
+    "types": ["vitest/globals"]
   },
   "include": [
     "../src/*",

@@ -3,30 +3,25 @@
   "version": "1.0.0",
   "scripts": {
     "clean": "rimraf dist/",
-    "build": "npm run clean && webpack --progress --colors --mode=production",
-    "start": "webpack-dev-server --progress --colors --mode=development",
-    "start:prod": "npm run build && http-server dist/ -p 9999 -o"
+    "build": "pnpm run clean && webpack --config webpack.config.cjs --mode=production",
+    "start": "webpack serve --config webpack.config.cjs --mode=development",
+    "start:prod": "pnpm run build && http-server dist/ -p 9999 -o"
   },
   "devDependencies": {
-    "@types/html-webpack-plugin": "3.2.1",
-    "@types/node": "12.11.7",
-    "@types/react": "16.9.10",
-    "@types/react-dom": "16.9.2",
-    "@types/webpack": "4.39.5",
-    "@types/webpack-dev-server": "3.4.0",
-    "html-webpack-plugin": "5.5.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "html-webpack-plugin": "5.6.7",
     "http-server": "14.1.1",
-    "rimraf": "3.0.0",
-    "ts-loader": "9.4.2",
-    "ts-node": "8.4.1",
-    "typescript": "3.6.4",
-    "webpack": "5.76.0",
-    "webpack-cli": "5.0.1",
-    "webpack-dev-server": "3.11.3"
+    "rimraf": "6.1.3",
+    "ts-loader": "9.5.7",
+    "typescript": "6.0.3",
+    "webpack": "5.106.2",
+    "webpack-cli": "7.0.2",
+    "webpack-dev-server": "5.2.4"
   },
   "dependencies": {
-    "react": "16.11.0",
-    "react-dom": "16.11.0",
-    "resub": "2.0.0-alpha.scary.1"
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "resub": "workspace:*"
   }
 }

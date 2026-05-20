@@ -125,14 +125,15 @@ class TodosStore extends StoreBase {
 
 #### Autosubscriptions using `@key`:
 
-Key-based subscriptions are very powerful, but they can be even more powerful and can reduce more boilerplate code when combined with autosubscriptions. Let’s update our `TodosStore` to add the `@key` decorator:
+Key-based subscriptions are very powerful, but they can be even more powerful and can reduce more boilerplate code when combined with autosubscriptions. ReSub uses standard TypeScript decorators, so `@key` is a method decorator that records which argument positions are part of the subscription key. Let’s update our `TodosStore` to add `@key(0)`:
 
 ```javascript
 class TodosStore extends StoreBase {
     ...
 
     @autoSubscribe
-    getTodosForUser(@key username: string) {
+    @key(0)
+    getTodosForUser(username: string) {
         return this._todosByUser[username];
     }
 }
@@ -156,7 +157,7 @@ class TodoList extends ComponentBase<TodoListProps, TodoListState> {
 
 #### Compound-key subscriptions/triggering
 
-Sometimes, either when a single store contains hierarchical data, or when you have more than one parameter to a function that you'd like to have key-based subscriptions to (i.e. a user and a name of an object that the user has), the single @key mechanism isn't good enough.  We've added the ability to put @key on multiple parameters to a function, and ReSub concatenates them with the `formCompoundKey` function (also exported by ReSub) to form the actual subscription key.  You can also combine this with @autoSubscribeWithKey to have even more hierarchy on your data.  Note that the @autoSubscribeWithKey value always goes on the _end_ of the compound key, since it should be the most selective part of your hierarchy.
+Sometimes, either when a single store contains hierarchical data, or when you have more than one parameter to a function that you'd like to have key-based subscriptions to (i.e. a user and a name of an object that the user has), a single key argument isn't good enough. Use `@key(0, 1)` to identify multiple method arguments, and ReSub concatenates them with the `formCompoundKey` function (also exported by ReSub) to form the actual subscription key. You can also combine this with @autoSubscribeWithKey to have even more hierarchy on your data. Note that the @autoSubscribeWithKey value always goes on the _end_ of the compound key, since it should be the most selective part of your hierarchy.
 
 To trigger these compound keys, you execute `this.trigger(ReSub.formCompoundKey('key1val', 'key2val', 'autoSubscribeWithKeyval'))` and it will trigger the key to match the autosubscription of your function.
 
@@ -173,7 +174,8 @@ class UserStuffStore extends StoreBase {
     private _stuffByUser: {[userCategory: string]: {[username: string]: {boxA: string; boxB: string;}}}
 
     @autoSubscribeWithKey(TriggerKeys.BoxA)
-    getBoxAForUser(@key userCategory: string, @key username: string) {
+    @key(0, 1)
+    getBoxAForUser(userCategory: string, username: string) {
         return this._stuffByUser[userCategory][username].boxA;
     }
 
@@ -244,8 +246,9 @@ import isEqual from 'lodash/isEqual';
 
 import ComponentBase from './ComponentBase';
 
-export function DeepEqualityShouldComponentUpdate<T extends { new(props: any): ComponentBase<any, any> }>(constructor: T): T {
-    return CustomEqualityShouldComponentUpdate<any, any>(deepEqualityComparator)(constructor);
+export function DeepEqualityShouldComponentUpdate<T extends { new(props: any): ComponentBase<any, any> }>(
+        constructor: T, context: ClassDecoratorContext<T>): T {
+    return CustomEqualityShouldComponentUpdate<any, any>(deepEqualityComparator)(constructor, context);
 }
 
 function deepEqualityComparator<P extends React.Props<any>, S = {}>(
@@ -384,6 +387,25 @@ Whether using ReSub or not, your app will likely scale best if it follows these 
 
 To assist with performance analysis of your store and component state-building/-triggering, there is a performance module built into ReSub that marks durations for buildState functions and store trigger callbacks.  If you want to enable it, call the `setPerformanceMarkingEnabled(true)` function available on the root ReSub module export.
 
+## Development
+
+ReSub uses `mise` for local tool management and `pnpm` for package management. Run `mise trust` once for this repository, then `mise install` and `pnpm install`.
+
+Useful local tasks:
+
+- `mise run lint`
+- `mise run test`
+- `mise run build`
+- `BUMP=patch mise run release`
+
+The release task requires a clean git working tree, bumps `package.json`, updates `pnpm-lock.yaml`, creates a release commit and tag, pushes them, and publishes to npm. Set `BUMP=minor`, `BUMP=major`, or an exact semver version to override the default patch bump. Set `PUSH=0` to skip pushing the release commit and tag.
+
+## Using ReSub with TypeScript
+
+ReSub uses the standard decorator model supported by TypeScript 5 and newer. Do not enable `experimentalDecorators`; that flag selects TypeScript's legacy decorator behavior. If your `tsconfig.json` has an explicit `lib` list, include `"decorators"` so the standard decorator context types are available.
+
+Standard decorators do not support parameter decorators. Code that previously used `getTodosForUser(@key username: string)` should move `@key` onto the method and pass argument indexes, e.g. `@key(0)` or `@key(0, 1)`.
+
 ## Using ReSub Without TypeScript
 
 It is fine to use ReSub without TypeScript, but without access to TypeScript’s method decorators, stores and components cannot leverage autosubscriptions, and as such, lose a lot of their value.
@@ -391,44 +413,43 @@ It is fine to use ReSub without TypeScript, but without access to TypeScript’s
 At the very least, developers can still leverage the organizational patterns of `ComponentBase` and `StoreBase`, and any virtual functions that subclasses implement will still be called.
 
 ## Using ReSub with Babel
-ReSub relies heavily on typescript decorators, which are not supported out of the box when transpiling typescript via babel. If you choose to transpile your project with Babel, be sure to add the following to your babel config:
+ReSub relies heavily on standard TypeScript decorators, which are not supported out of the box when transpiling TypeScript via Babel. If you choose to transpile your project with Babel, configure Babel's decorators plugin for the current standard decorators proposal:
 
 ```json
   plugins: [
-    ["@babel/plugin-proposal-decorators", { legacy: true }],
-    "babel-plugin-parameter-decorator"
+    ["@babel/plugin-proposal-decorators", { "version": "2023-11" }]
   ],
 ```
 
-You'll also need to install `babel-plugin-parameter-decorator@^1.0.8` and `@babel/plugin-proposal-decorators`
-
-## TSLint rules
-
-We have couple of tslint rules to automate search of common problems in ReSub usage.
-They are located at the `./dist/tslint` folder of the package.
-add following rules to your tslint.json in order to use them.
-
-incorrect-state-access rule doesn't check abstract methods called from UNSAFE_componentWillMount, but you could enforce check of your methods by passing them to the rule as an argument.
-
-```
-"incorrect-state-access": [
-    true
-],
-
-"override-calls-super": [
-    true,
-    "_buildInitialState",
-    "UNSAFE_componentWillMount",
-    "componentDidMount",
-    "UNSAFE_componentWillReceiveProps",
-    "UNSAFE_componentWillUpdate",
-    "componentDidUpdate",
-    "componentWillUnmount"
-],
-```
+You'll also need to install `@babel/plugin-proposal-decorators`.
 
 ## ESLint rules
 
-> [TSLint will be deprecated some time in 2019](https://github.com/palantir/tslint)
+ReSub includes an ESLint flat-config plugin for common ReSub usage issues. It is published at `resub/eslint/index.mjs`.
 
-If you plan to migrate your projects from TSLint to ESlint and want to continue using the _rules_ to automate search common problems in *ReSub* usage, you can use [eslint-plugin-resub](https://github.com/a-tarasyuk/eslint-plugin-resub).
+```js
+import resub from 'resub/eslint/index.mjs';
+
+export default [
+    {
+        files: ['src/**/*.{ts,tsx}'],
+        plugins: {
+            resub,
+        },
+        rules: {
+            'resub/incorrect-state-access': 'error',
+            'resub/override-calls-super': [
+                'error',
+                '_buildInitialState',
+                'componentDidMount',
+                'componentDidUpdate',
+                'componentWillUnmount',
+            ],
+        },
+    },
+];
+```
+
+`resub/incorrect-state-access` reports `this.state` access from `UNSAFE_componentWillMount` and from methods reachable through `this.method()` calls. Pass additional method names after the severity to check other entry points.
+
+`resub/override-calls-super` requires configured override methods to call the matching `super` method in the top-level statements of the method body.

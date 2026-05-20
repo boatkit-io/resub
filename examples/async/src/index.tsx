@@ -1,8 +1,10 @@
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { Game } from './Game';
 
-ReactDOM.render(
-    <Game />,
-    document.getElementById('root'),
-);
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+    throw new Error('Missing root element');
+}
+
+createRoot(rootElement).render(<Game />);

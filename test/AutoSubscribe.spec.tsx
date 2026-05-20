@@ -7,8 +7,7 @@
  */
 
 import * as React from 'react';
-// eslint-disable-next-line
-import { ReactElement } from 'react';
+import { act, ReactElement } from 'react';
 import {
     includes,
     cloneDeep,
@@ -16,8 +15,6 @@ import {
     each,
     uniq,
 } from 'lodash';
-import { act } from 'react-dom/test-utils';
-import { mount, ReactWrapper, shallow } from 'enzyme';
 
 import { withResubAutoSubscriptions } from '../src/AutoSubscriptions';
 import ComponentBase from '../src/ComponentBase';
@@ -25,6 +22,12 @@ import { StoreBase } from '../src/StoreBase';
 import { formCompoundKey } from '../src/utils';
 
 import { SimpleStore, TriggerKeys, StoreData } from './SimpleStore';
+import {
+    cleanupReactTestComponents,
+    mountComponent,
+    ReactWrapper,
+    renderComponent,
+} from './ReactTestUtils';
 
 // Instance of the SimpleStore used throughout the test. Re-created for each test.
 let SimpleStoreInstance: SimpleStore;
@@ -135,7 +138,7 @@ class OverriddenComponent extends SimpleComponent {
     }
 
     static makeComponent(props: SimpleProps): ReactWrapper<SimpleProps, SimpleState, OverriddenComponent> {
-        return mount(<OverriddenComponent { ...props } />);
+        return mountComponent<SimpleProps, SimpleState, OverriddenComponent>(OverriddenComponent, props);
     }
 
     static getDerivedStateFromProps: React.GetDerivedStateFromProps<unknown, unknown> = (props, state) =>
@@ -150,7 +153,7 @@ class OverriddenComponent extends SimpleComponent {
 // Makes a new SimpleComponent and performs some internal checks.
 function makeComponent(props: SimpleProps): ReactWrapper<SimpleProps, SimpleState, SimpleComponent> {
     // Make the component, calling _buildState in the constructor.
-    const Component: ReactWrapper<SimpleProps, SimpleState, SimpleComponent> = mount(<SimpleComponent { ...props } />);
+    const Component = mountComponent<SimpleProps, SimpleState, SimpleComponent>(SimpleComponent, props);
     const {
         stateChanges,
         storeDatas,
@@ -597,6 +600,8 @@ function runTests(makeComponent: (props: SimpleProps) => ReactWrapper<SimpleProp
 }
 
 describe('derivedStateFromProps', function() {
+    afterEach(cleanupReactTestComponents);
+
     beforeEach(() => {
         // Create a new store with zero subscriptions.
         SimpleStoreInstance = new SimpleStore();
@@ -612,6 +617,8 @@ describe('derivedStateFromProps', function() {
 });
 
 describe('AutoSubscribe', function() {
+    afterEach(cleanupReactTestComponents);
+
     beforeEach(() => {
         // Create a new store with zero subscriptions.
         SimpleStoreInstance = new SimpleStore();
@@ -637,7 +644,7 @@ describe('AutoSubscribe', function() {
         const WrappedFuncComp = withResubAutoSubscriptions(FuncComp);
 
         expect(numCalls).toEqual(0);
-        const container = mount(<WrappedFuncComp />);
+        const container = renderComponent(<WrappedFuncComp />);
         expect(numCalls).toEqual(1);
         expect(container.text()).toEqual('0');
         expect(SimpleStoreInstance.test_getSubscriptions().get('A').length).toEqual(1);
@@ -660,8 +667,7 @@ describe('AutoSubscribe', function() {
             return <>{ val.toString() }</>;
         }
 
-        // This awkward method of testing suggested by https://github.com/enzymejs/enzyme/issues/1255 and appears to work.
-        expect(() => shallow(<FuncComp />)).toThrow();
+        expect(() => renderComponent(<FuncComp />)).toThrow();
     });
 
     it('Does not throw when called from render function with wrapping', function() {
@@ -673,6 +679,6 @@ describe('AutoSubscribe', function() {
         }
         const WrappedFuncComp = withResubAutoSubscriptions(FuncComp);
 
-        expect(() => shallow(<WrappedFuncComp />)).not.toThrow();
+        expect(() => renderComponent(<WrappedFuncComp />)).not.toThrow();
     });
 });

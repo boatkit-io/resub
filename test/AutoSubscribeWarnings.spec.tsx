@@ -1,18 +1,18 @@
 import * as React from 'react';
-// eslint-disable-next-line
 import { ReactElement } from 'react';
-
-import { shallow } from 'enzyme';
 
 import ComponentBase from '../src/ComponentBase';
 
 import { SimpleStore } from './SimpleStore';
+import { cleanupReactTestComponents, renderComponent } from './ReactTestUtils';
 
 const WARN_IN_BUILD_STATE = 'build';
 const WARNING_MESSAGE = `[resub] Only Store methods with the @autoSubscribe decorator \
 can be called right now (e.g. in _buildState): "setStoreData"`;
 
 describe('AutoSubscribeWarnings', () => {
+    afterEach(cleanupReactTestComponents);
+
     it('Auto-subscribe warns if setter is called in _buildState', () => {
         const store = new SimpleStore();
         class Component extends ComponentBase<{}, {}> {
@@ -29,6 +29,6 @@ describe('AutoSubscribeWarnings', () => {
             }
         }
 
-        shallow(<Component />);
+        renderComponent(<Component />);
     });
 });

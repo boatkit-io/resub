@@ -39,10 +39,11 @@ export class SimpleStore extends StoreBase {
         return this._storeDataById;
     }
 
-    // Auto-subscribes to the key given by 'id' (note: @key decorator on 'id') since only changes on that 'id' affects
+    // Auto-subscribes to the key given by 'id' (note: @key decorator points to argument 0) since only changes on that 'id' affects
     // the returned data.
     @autoSubscribe
-    getStoreData(@key id: string): StoreData {
+    @key(0)
+    getStoreData(id: string): StoreData {
         return this._get(id);
     }
 
@@ -67,27 +68,32 @@ export class SimpleStore extends StoreBase {
     }
 
     @autoSubscribeWithKey(TriggerKeys.First)
-    getSingleKeySingleAutoSubKey(@key id: string): number {
+    @key(0)
+    getSingleKeySingleAutoSubKey(id: string): number {
         return this._get(id) + this._subscribeWithEnumKeyData[TriggerKeys.First];
     }
 
     @autoSubscribeWithKey([TriggerKeys.First, TriggerKeys.Second])
-    getSingleKeyMultiAutoSubKey(@key id: string): number {
+    @key(0)
+    getSingleKeyMultiAutoSubKey(id: string): number {
         return this._get(id) + this._subscribeWithEnumKeyData[TriggerKeys.First] + this._subscribeWithEnumKeyData[TriggerKeys.Second];
     }
 
     @autoSubscribe
-    getMultiKeyNoAutoSubKey(@key id: string, @key id2: string): number {
+    @key(0, 1)
+    getMultiKeyNoAutoSubKey(id: string, id2: string): number {
         return this._get(id) + this._get(id2);
     }
 
     @autoSubscribeWithKey(TriggerKeys.First)
-    getMultiKeySingleAutoSubKey(@key id: string, @key id2: string): number {
+    @key(0, 1)
+    getMultiKeySingleAutoSubKey(id: string, id2: string): number {
         return this._get(id) + this._get(id2) + this._subscribeWithEnumKeyData[TriggerKeys.First];
     }
 
     @autoSubscribeWithKey([TriggerKeys.First, TriggerKeys.Second])
-    getMultiKeyMultiAutoSubKey(@key id: string, @key id2: string): number {
+    @key(0, 1)
+    getMultiKeyMultiAutoSubKey(id: string, id2: string): number {
         return this._get(id) + this._get(id2) +
             this._subscribeWithEnumKeyData[TriggerKeys.First] + this._subscribeWithEnumKeyData[TriggerKeys.Second];
     }
