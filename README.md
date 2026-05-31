@@ -100,11 +100,13 @@ ReSub is built with scalability in mind; it works for apps of all sizes with all
 
 #### Subscriptions by key:
 
-By default, a store will notify all of its subscriptions any time new data is available. This is the simplest approach and useful for many scenarios, however, stores that have heavy data traffic may result in performance bottlenecks. ReSub overcomes this by allowing subscribers to specify a string `key` that limit the scope in which they will trigger.
+By default, a store will notify all of its subscriptions any time new data is available. This is the simplest approach and useful for many scenarios, however, stores that have heavy data traffic may result in performance bottlenecks. ReSub overcomes this by allowing subscribers to specify a string `key` that limits the scope in which they will trigger.
+
+Subscription keys must match field paths on the store state. ReSub still passes keys around as strings at runtime, but every fixed trigger/subscription key must name a field on `this._state`. There is no upper camel case requirement and no `Key_` prefix requirement. The only special key is `StoreBase.Key_All`, which ReSub uses internally for subscriptions that should respond to every trigger. Use the `resub/state-keypaths` ESLint rule to enforce this requirement.
 
 Consider an example where our Todo app differentiates between high and low priority todo items. Perhaps we want to show a list of all high priority todo items in a `HighPriorityTodoItems` component. This component could subscribe to all changes on the `TodosStore`, but this means it’d re-render even when a new low priority todo was created. That’s wasted effort!
 
-Let’s make `TodosStore` smarter. When a new high priority todo item is added, it should trigger with a special key `TodosStore.Key_HighPriorityTodoAdded` instead of using the default `StoreBase.Key_All` key. Our `HighPriorityTodoItems` component can now subscribe to just this key, and its subscription will trigger whenever `TodosStore` triggers with either `TodosStore.Key_HighPriorityTodoAdded` or `StoreBase.Key_All`, but not for `TodosStore.Key_LowPriorityTodoAdded`.
+Let’s make `TodosStore` smarter. When a new high priority todo item is added, it should trigger with a custom key instead of using the default `StoreBase.Key_All` key. Our `HighPriorityTodoItems` component can now subscribe to just this key, and its subscription will trigger whenever `TodosStore` triggers with either that exact key or `StoreBase.Key_All`, but not for unrelated keys.
 
 All of this can still be accomplished using method decorators and autosubscriptions. Let’s create a new method in `TodosStore`:
 
@@ -112,16 +114,41 @@ All of this can still be accomplished using method decorators and autosubscripti
 class TodosStore extends StoreBase {
     ...
 
-    static Key_HighPriorityTodoAdded = "Key_HighPriorityTodoAdded";
+    private _state = {
+        highPriorityTodos: [],
+    };
 
-    @autoSubscribeWithKey(TodosStore.Key_HighPriorityTodoAdded)
+    @autoSubscribeWithKey("highPriorityTodos")
     getHighPriorityTodos() {
-        return this._highPriorityTodos;
+        return this._state.highPriorityTodos;
+    }
+
+    addHighPriorityTodo(todo) {
+        this._state.highPriorityTodos.push(todo);
+        this.trigger("highPriorityTodos");
     }
 }
 ```
 
 *Note: Of course it’s possible to separate high and low priority todo items into separate stores, but sometimes similar data is simultaneously divided on different axes and is therefore difficult to separate into stores without duplicating. Using custom keys is an elegant solution to this problem.*
+
+Because keys must match state field paths, use the field name directly when subscribing to a top-level `_state` field:
+
+```typescript
+class DeviceStore extends StoreBase {
+    @autoSubscribeWithKey("devicePGNs")
+    getAllDevicePGNs() {
+        return this._state.devicePGNs;
+    }
+
+    setDevicePGNs(devicePGNs) {
+        this._state.devicePGNs = devicePGNs;
+        this.trigger("devicePGNs");
+    }
+}
+```
+
+The string `"devicePGNs"` matches the `devicePGNs` field on `this._state`; using `"devicepgns"` or `"Key_DevicePGNs"` would not match this state field path.
 
 #### Autosubscriptions using `@key`:
 
@@ -157,9 +184,9 @@ class TodoList extends ComponentBase<TodoListProps, TodoListState> {
 
 #### Compound-key subscriptions/triggering
 
-Sometimes, either when a single store contains hierarchical data, or when you have more than one parameter to a function that you'd like to have key-based subscriptions to (i.e. a user and a name of an object that the user has), a single key argument isn't good enough. Use `@key(0, 1)` to identify multiple method arguments, and ReSub concatenates them with the `formCompoundKey` function (also exported by ReSub) to form the actual subscription key. You can also combine this with @autoSubscribeWithKey to have even more hierarchy on your data. Note that the @autoSubscribeWithKey value always goes on the _end_ of the compound key, since it should be the most selective part of your hierarchy.
+Sometimes, either when a single store contains hierarchical data, or when you have more than one parameter to a function that you'd like to have key-based subscriptions to (i.e. a user and a name of an object that the user has), a single key argument isn't good enough. Use `@key(0, 1)` to identify multiple method arguments, and ReSub concatenates them with the `formCompoundKey` function (also exported by ReSub) to form the actual subscription key. You can also combine this with `@autoSubscribeWithKey` to create a compound key made from method arguments plus a fixed suffix. The `@autoSubscribeWithKey` value always goes on the _end_ of the compound key.
 
-To trigger these compound keys, you execute `this.trigger(ReSub.formCompoundKey('key1val', 'key2val', 'autoSubscribeWithKeyval'))` and it will trigger the key to match the autosubscription of your function.
+To trigger these compound keys, you execute `this.trigger(ReSub.formCompoundKey('key1val', 'key2val', 'autoSubscribeWithKeyval'))` and it will trigger the key to match the autosubscription of your function. `formCompoundKey` does not understand object paths or wildcards; it simply joins the key segments into one exact string. When dynamic method arguments represent map/index values, the fixed string segments should still match fields from the state path.
 
 *NOTE:* Compound keys themselves don't actually support any sort of hierarchy.  If you don't trigger EXACTLY the correct key, your subscriptions will not update.  If you have a key of `['a', 'b', 'c']`, and you trigger `['a', 'b']`, you will be disappointed to find that none of your subscribed components update.  Compound keys are designed to help you provide discrete updates within a hierarchy of data, but are not designed to allow for updating wide swaths of that hierarchy.
 
@@ -167,21 +194,23 @@ Example of correct usage:
 
 ```typescript
 enum TriggerKeys {
-    BoxA = 'a',
-    BoxB = 'b',
+    BoxA = 'boxA',
+    BoxB = 'boxB',
 }
 class UserStuffStore extends StoreBase {
-    private _stuffByUser: {[userCategory: string]: {[username: string]: {boxA: string; boxB: string;}}}
+    private _state: {
+        stuffByUser: {[userCategory: string]: {[username: string]: {boxA: string; boxB: string;}}}
+    };
 
     @autoSubscribeWithKey(TriggerKeys.BoxA)
     @key(0, 1)
     getBoxAForUser(userCategory: string, username: string) {
-        return this._stuffByUser[userCategory][username].boxA;
+        return this._state.stuffByUser[userCategory][username].boxA;
     }
 
     @disableWarnings
     setBoxAForUser(userCategory: string, username: string, boxAValue: string): void {
-        this._stuffByUser[userCategory][username].boxA = boxAValue;
+        this._state.stuffByUser[userCategory][username].boxA = boxAValue;
         this.trigger(ReSub.formCompoundKey(userCategory, username, TriggerKeys.BoxA));
     }
 }
@@ -455,6 +484,7 @@ export default [
         },
         rules: {
             'resub/incorrect-state-access': 'error',
+            'resub/state-keypaths': 'error',
             'resub/override-calls-super': [
                 'error',
                 '_buildInitialState',
@@ -468,5 +498,7 @@ export default [
 ```
 
 `resub/incorrect-state-access` reports `this.state` access from `UNSAFE_componentWillMount` and from methods reachable through `this.method()` calls. Pass additional method names after the severity to check other entry points.
+
+`resub/state-keypaths` requires keys passed to `@autoSubscribeWithKey(...)`, `this.trigger(...)`, and `this.subscribe(..., key)` to match field paths accessed through `this._state` in the same store class. It accepts string and number literals, enum members, static constants, arrays of keys, and `formCompoundKey(...)`. Dynamic key expressions are reported because they cannot be checked. If your store uses a different state field name, configure it with `{ statePropertyName: 'state' }`.
 
 `resub/override-calls-super` requires configured override methods to call the matching `super` method in the top-level statements of the method body.
