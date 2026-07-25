@@ -251,17 +251,29 @@ function splitKeyPathString(value) {
         .filter(Boolean);
 }
 
-function isFormCompoundKeyCall(node) {
+function isNamedCall(node, functionName) {
     if (node.type !== 'CallExpression') {
         return false;
     }
 
     if (node.callee.type === 'Identifier') {
-        return node.callee.name === 'formCompoundKey';
+        return node.callee.name === functionName;
     }
 
     return node.callee.type === 'MemberExpression' &&
-        getMemberPropertyName(node.callee) === 'formCompoundKey';
+        getMemberPropertyName(node.callee) === functionName;
+}
+
+function isFormCompoundKeyCall(node) {
+    return isNamedCall(node, 'formCompoundKey');
+}
+
+function isKeyArgCall(node) {
+    return isNamedCall(node, 'keyArg');
+}
+
+function isKeyPathCall(node) {
+    return isNamedCall(node, 'keyPath');
 }
 
 function getKeyPathsFromExpression(node, constants) {
@@ -281,6 +293,29 @@ function getKeyPathsFromExpression(node, constants) {
         }
 
         return { kind: 'ok', paths };
+    }
+
+    if (isKeyPathCall(node)) {
+        if (node.arguments.length === 0) {
+            return { kind: 'unknown', paths: [] };
+        }
+
+        const path = [];
+        for (const argument of node.arguments) {
+            if (!argument || argument.type === 'SpreadElement') {
+                return { kind: 'unknown', paths: [] };
+            }
+
+            if (isKeyArgCall(argument)) {
+                path.push(UNKNOWN_SEGMENT);
+                continue;
+            }
+
+            const value = getConstantValue(argument, constants);
+            path.push(...(value === undefined ? [UNKNOWN_SEGMENT] : splitKeyPathString(value)));
+        }
+
+        return { kind: 'ok', paths: [path] };
     }
 
     if (isFormCompoundKeyCall(node)) {
@@ -544,6 +579,10 @@ function getAutoSubscribeWithKeyDecorators(element) {
     });
 }
 
+function isAutoSubscribeOptionsExpression(node) {
+    return node?.type === 'ObjectExpression';
+}
+
 function validateStateKeyExpression(context, node, statePaths, constants, statePropertyName, allowDynamicKeys) {
     const result = getKeyPathsFromExpression(node, constants);
     if (result.kind === 'skip') {
@@ -633,14 +672,20 @@ const stateKeypaths = {
 
                 for (const element of node.body) {
                     for (const decorator of getAutoSubscribeWithKeyDecorators(element)) {
-                        validateStateKeyExpression(
-                            context,
-                            decorator.expression.arguments[0],
-                            statePaths,
-                            constants,
-                            statePropertyName,
-                            allowDynamicKeys,
-                        );
+                        for (const argument of decorator.expression.arguments) {
+                            if (!argument || argument.type === 'SpreadElement' || isAutoSubscribeOptionsExpression(argument)) {
+                                continue;
+                            }
+
+                            validateStateKeyExpression(
+                                context,
+                                argument,
+                                statePaths,
+                                constants,
+                                statePropertyName,
+                                allowDynamicKeys,
+                            );
+                        }
                     }
 
                     if (isMethodLikeClassElement(element)) {

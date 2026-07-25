@@ -7,6 +7,8 @@ import {
     AutoSubscribeStore,
     disableWarnings,
     autoSubscribe,
+    keyArg,
+    keyPath,
     key,
 } from '../src/AutoSubscriptions';
 import { assert, formCompoundKey } from '../src/utils';
@@ -57,6 +59,11 @@ export class SimpleStore extends StoreBase {
         return this._subscribeWithKeyData.A + this._subscribeWithKeyData.B;
     }
 
+    @autoSubscribeWithKey('A', 'B')
+    getDataVariadicKeyed(): number {
+        return this._subscribeWithKeyData.A + this._subscribeWithKeyData.B;
+    }
+
     @autoSubscribeWithKey(TriggerKeys.First)
     getDataSingleEnumKeyed(): number {
         return this._subscribeWithEnumKeyData[TriggerKeys.First];
@@ -65,6 +72,24 @@ export class SimpleStore extends StoreBase {
     @autoSubscribeWithKey([TriggerKeys.First, TriggerKeys.Second])
     getDataMultiEnumKeyed(): number {
         return this._subscribeWithEnumKeyData[TriggerKeys.First] + this._subscribeWithEnumKeyData[TriggerKeys.Second];
+    }
+
+    @autoSubscribeWithKey(keyPath('radars', keyArg(0), 'dataSets', keyArg(1), 'spokeData'))
+    getInterleavedKeyPath(radarID: string, dataSetKey: string): string {
+        return radarID + dataSetKey;
+    }
+
+    @autoSubscribeWithKey(
+        keyPath('radars', keyArg(0), 'dataSets', keyArg(1), 'rangeMeters'),
+        keyPath('radars', keyArg(0), 'spokeRangeMeters'),
+    )
+    getMultipleKeyPaths(radarID: string, dataSetKey: string): string {
+        return radarID + dataSetKey;
+    }
+
+    @autoSubscribeWithKey(keyPath('rows', 0, keyArg(0)))
+    getNumericLiteralKeyPath(rowID: number): number {
+        return rowID;
     }
 
     @autoSubscribeWithKey(TriggerKeys.First)

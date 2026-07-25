@@ -36,7 +36,7 @@
 import { useEffect, useState } from 'react';
 
 import Options from './Options';
-import { KeyOrKeys, assert, formCompoundKey, isFunction, isNumber, isString, normalizeKeys } from './utils';
+import { KeyOrKeys, assert, formCompoundKey, isFunction, isNumber, isString, normalizeKey, normalizeKeys } from './utils';
 import { StoreBase } from './StoreBase';
 
 interface Metadata {
@@ -60,6 +60,67 @@ type ResubMethodDecorator = <This, Args extends any[], Return>(
     context: ClassMethodDecoratorContext<This, ResubMethod<This, Args, Return>>
 ) => ResubMethod<This, Args, Return> | void;
 
+const keyArgumentTag: unique symbol = Symbol('resubKeyArgument');
+const keyPathTag: unique symbol = Symbol('resubKeyPath');
+
+export interface KeyArgument<Index extends number = number> {
+    readonly [keyArgumentTag]: true;
+    readonly index: Index;
+}
+
+export type KeyPathSegment = string | number | KeyArgument;
+
+export interface KeyPath<Segments extends readonly KeyPathSegment[] = readonly KeyPathSegment[]> {
+    readonly [keyPathTag]: true;
+    readonly segments: Segments;
+}
+
+type AutoSubscribeKeySpec = string | number | KeyPath;
+
+type ArgumentAt<
+    Args extends readonly unknown[],
+    Index extends number,
+    Seen extends readonly unknown[] = [],
+> = Args extends readonly [infer Head, ...infer Tail]
+    ? Seen['length'] extends Index
+        ? Head
+        : ArgumentAt<Tail, Index, [...Seen, unknown]>
+    : never;
+
+type InvalidKeyArgument<
+    Args extends readonly unknown[],
+    Segments extends readonly KeyPathSegment[],
+> = Segments extends readonly [infer Head, ...infer Tail extends readonly KeyPathSegment[]]
+    ? Head extends KeyArgument<infer Index>
+        ? [ArgumentAt<Args, Index>] extends [never]
+            ? `keyArg(${ Index }) is outside the method parameter list`
+            : ArgumentAt<Args, Index> extends string | number
+                ? InvalidKeyArgument<Args, Tail>
+                : `keyArg(${ Index }) references a parameter that is not string | number`
+        : InvalidKeyArgument<Args, Tail>
+    : never;
+
+type InvalidKeySpec<
+    Args extends readonly unknown[],
+    KeySpecs extends readonly AutoSubscribeKeySpec[],
+> = KeySpecs extends readonly [infer Head, ...infer Tail extends readonly AutoSubscribeKeySpec[]]
+    ? Head extends KeyPath<infer Segments>
+        ? InvalidKeyArgument<Args, Segments> | InvalidKeySpec<Args, Tail>
+        : InvalidKeySpec<Args, Tail>
+    : never;
+
+type KeySpecValidation<
+    Args extends readonly unknown[],
+    KeySpecs extends readonly AutoSubscribeKeySpec[],
+> = [InvalidKeySpec<Args, KeySpecs>] extends [never]
+    ? unknown
+    : { readonly __invalidResubKeyPath: InvalidKeySpec<Args, KeySpecs> };
+
+type KeyPathMethodDecorator<KeySpecs extends readonly AutoSubscribeKeySpec[]> = <This, Args extends any[], Return>(
+    existingMethod: ResubMethod<This, Args, Return> & KeySpecValidation<Args, KeySpecs>,
+    context: ClassMethodDecoratorContext<This, ResubMethod<This, Args, Return>>
+) => ResubMethod<This, Args, Return> | void;
+
 const methodMetadataKey = Symbol('resubMethodMetadata');
 
 interface MethodMetadata {
@@ -78,6 +139,33 @@ interface ResubClassConstructor {
 
 export interface AutoSubscribeOptions {
     keyArgs?: number | number[];
+}
+
+type ValidKeyArgumentIndex<Index extends number> = number extends Index
+    ? Index
+    : `${ Index }` extends `-${ string }` | `${ string }.${ string }`
+        ? never
+        : Index;
+
+export function keyArg<const Index extends number>(index: ValidKeyArgumentIndex<Index>): KeyArgument<Index> {
+    normalizeKeyIndexes([index], 'keyArg');
+    return Object.freeze({
+        [keyArgumentTag]: true as const,
+        index,
+    });
+}
+
+export function keyPath<const Segments extends readonly KeyPathSegment[]>(...segments: Segments): KeyPath<Segments> {
+    assert(segments.length > 0, 'Must specify at least one segment when using keyPath');
+    for (const segment of segments) {
+        assert(isString(segment) || isNumber(segment) || isKeyArgument(segment),
+            `keyPath segments must be strings, numbers, or keyArg references: ${ JSON.stringify(segment) }`);
+    }
+
+    return Object.freeze({
+        [keyPathTag]: true as const,
+        segments: Object.freeze(segments.slice()) as unknown as Segments,
+    });
 }
 
 // Callback and info for setting up auto-subscriptions.
@@ -153,20 +241,32 @@ function getKeyIndexes(method: Function): number[] | undefined {
     return metadata && metadata.keyIndexes;
 }
 
-function normalizeKeyIndexes(keyArgs: number | number[] | undefined): number[] | undefined {
+function normalizeKeyIndexes(keyArgs: number | number[] | undefined, decoratorName = 'key'): number[] | undefined {
     if (keyArgs === undefined) {
         return undefined;
     }
 
     const normalized = Array.isArray(keyArgs) ? keyArgs.slice() : [keyArgs];
-    assert(normalized.length > 0, 'Must specify at least one argument index when using @key');
+    assert(normalized.length > 0, `Must specify at least one argument index when using ${ decoratorName }`);
 
     for (const index of normalized) {
         assert(isNumber(index) && isFinite(index) && Math.floor(index) === index && index >= 0,
-            `@key argument indexes must be non-negative integers: ${ JSON.stringify(index) }`);
+            `${ decoratorName } argument indexes must be non-negative integers: ${ JSON.stringify(index) }`);
     }
 
     return normalized;
+}
+
+function isKeyArgument(value: unknown): value is KeyArgument {
+    return !!value && typeof value === 'object' && (value as KeyArgument)[keyArgumentTag] === true;
+}
+
+function isKeyPath(value: unknown): value is KeyPath {
+    return !!value && typeof value === 'object' && (value as KeyPath)[keyPathTag] === true;
+}
+
+function isAutoSubscribeOptions(value: unknown): value is AutoSubscribeOptions {
+    return !!value && typeof value === 'object' && !Array.isArray(value) && !isKeyPath(value);
 }
 
 function assertMethodContext(context: ClassMethodDecoratorContext<any, ResubMethod>, decoratorName: string): void {
@@ -286,29 +386,46 @@ export function AutoSubscribeStore<TClass extends ResubClassConstructor>(
     return constructor;
 }
 
+function getKeyArgumentValue(methodName: string, index: number, args: any[], decoratorName: string): string {
+    let keyArgumentValue = args[index];
+
+    if (isNumber(keyArgumentValue)) {
+        keyArgumentValue = normalizeKey(keyArgumentValue);
+    }
+
+    assert(keyArgumentValue, `${ decoratorName } argument must be given a non-empty string or number: ` +
+        `"${ methodName }" argument ${ index } was given ${ JSON.stringify(keyArgumentValue) }`);
+
+    assert(isString(keyArgumentValue), `${ decoratorName } argument must be given a string or number: ` +
+        `"${ methodName }" argument ${ index }`);
+
+    return keyArgumentValue;
+}
+
 function getKeyParamValues(methodName: string, keyIndexes: number[] | undefined, args: any[]): string[] {
     if (!keyIndexes) {
         return [];
     }
 
-    return keyIndexes.map(index => {
-        let keyArg = args[index];
+    return keyIndexes.map(index => getKeyArgumentValue(methodName, index, args, '@key'));
+}
 
-        if (isNumber(keyArg)) {
-            keyArg = keyArg.toString();
-        }
-
-        assert(keyArg, `@key argument must be given a non-empty string or number: ` +
-            `"${ methodName }" argument ${ index } was given ${ JSON.stringify(keyArg) }`);
-
-        assert(isString(keyArg), `@key argument must be given a string or number: "${ methodName }" argument ${ index }`);
-
-        return keyArg;
-    });
+function resolveKeyPath(methodName: string, path: KeyPath, args: any[]): string {
+    const segments = path.segments.map(segment => (
+        isKeyArgument(segment)
+            ? getKeyArgumentValue(methodName, segment.index, args, 'keyArg')
+            : normalizeKey(segment)
+    ));
+    return formCompoundKey(...segments);
 }
 
 // Triggers the handler of the most recent @enableAutoSubscribe method called up the call stack.
-function makeAutoSubscribeDecorator(shallow = false, autoSubscribeKeys?: string[], keyIndexes?: number[]): ResubMethodDecorator {
+function makeAutoSubscribeDecorator(
+        shallow = false,
+        autoSubscribeKeys?: string[],
+        keyIndexes?: number[],
+        keyPaths?: readonly KeyPath[],
+): ResubMethodDecorator {
     return <This, Args extends any[], Return>(
         existingMethod: ResubMethod<This, Args, Return>,
         context: ClassMethodDecoratorContext<This, ResubMethod<This, Args, Return>>) => {
@@ -359,9 +476,11 @@ function makeAutoSubscribeDecorator(shallow = false, autoSubscribeKeys?: string[
             // If we have @key values, put them first, then append the @autoSubscribeWithKey key to the end.
             // If there are multiple keys in the @autoSubscribeWithKey list, go through each one and do the
             // same thing (@key then value). If there's neither @key nor @autoSubscribeWithKey, it's Key_All.
-            const specificKeyValues: string[] = (autoSubscribeKeys && autoSubscribeKeys.length > 0) ?
-                autoSubscribeKeys.map(autoSubKey => formCompoundKey(...keyParamValues.concat(autoSubKey))) :
-                [(keyParamValues.length > 0) ? formCompoundKey(...keyParamValues) : StoreBase.Key_All];
+            const specificKeyValues: string[] = (keyPaths && keyPaths.length > 0)
+                ? keyPaths.map(path => resolveKeyPath(methodNameString, path, args))
+                : (autoSubscribeKeys && autoSubscribeKeys.length > 0)
+                    ? autoSubscribeKeys.map(autoSubKey => formCompoundKey(...keyParamValues.concat(autoSubKey)))
+                    : [(keyParamValues.length > 0) ? formCompoundKey(...keyParamValues) : StoreBase.Key_All];
 
             // Let the handler know about this auto-subscriptions, then proceed to the existing method.
             let wasInAutoSubscribe = false;
@@ -419,9 +538,36 @@ export function autoSubscribe<This, Args extends any[], Return>(
     return makeAutoSubscribeDecorator(true, undefined, normalizeKeyIndexes(first.keyArgs));
 }
 
-export function autoSubscribeWithKey(keyOrKeys: KeyOrKeys, options?: AutoSubscribeOptions): ResubMethodDecorator {
-    assert(keyOrKeys || isNumber(keyOrKeys), 'Must specify a key when using autoSubscribeWithKey');
-    return makeAutoSubscribeDecorator(true, normalizeKeys(keyOrKeys), normalizeKeyIndexes(options ? options.keyArgs : undefined));
+export function autoSubscribeWithKey(keyOrKeys: KeyOrKeys, options?: AutoSubscribeOptions): ResubMethodDecorator;
+export function autoSubscribeWithKey<const KeySpecs extends readonly AutoSubscribeKeySpec[]>(
+    ...keySpecs: KeySpecs
+): KeyPathMethodDecorator<KeySpecs>;
+export function autoSubscribeWithKey(
+        firstKeyOrKeys: KeyOrKeys | AutoSubscribeKeySpec,
+        ...remainingKeysOrOptions: (AutoSubscribeKeySpec | AutoSubscribeOptions | undefined)[]
+): ResubMethodDecorator {
+    assert(firstKeyOrKeys || isNumber(firstKeyOrKeys), 'Must specify a key when using autoSubscribeWithKey');
+
+    const hasLegacyOptions = remainingKeysOrOptions.length === 1 &&
+        (remainingKeysOrOptions[0] === undefined || isAutoSubscribeOptions(remainingKeysOrOptions[0]));
+    const options = hasLegacyOptions ? remainingKeysOrOptions[0] as AutoSubscribeOptions | undefined : undefined;
+    if (Array.isArray(firstKeyOrKeys) || hasLegacyOptions) {
+        assert(hasLegacyOptions || remainingKeysOrOptions.length === 0,
+            'A key array cannot be combined with additional autoSubscribeWithKey paths');
+        return makeAutoSubscribeDecorator(
+            true,
+            normalizeKeys(firstKeyOrKeys as KeyOrKeys),
+            normalizeKeyIndexes(options ? options.keyArgs : undefined),
+        );
+    }
+
+    const keySpecs = [firstKeyOrKeys, ...remainingKeysOrOptions] as AutoSubscribeKeySpec[];
+    if (!keySpecs.some(isKeyPath)) {
+        return makeAutoSubscribeDecorator(true, keySpecs.map(spec => normalizeKey(spec as string | number)));
+    }
+
+    const paths = keySpecs.map(spec => isKeyPath(spec) ? spec : keyPath(spec));
+    return makeAutoSubscribeDecorator(true, undefined, undefined, paths);
 }
 
 // Records which arguments of an @autoSubscribe method are used for the subscription key.

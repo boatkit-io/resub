@@ -10,6 +10,8 @@ import * as Types from './Types';
 
 export {
     autoSubscribeWithKey,
+    keyArg,
+    keyPath,
     AutoSubscribeStore,
     disableWarnings,
     autoSubscribe,
@@ -17,6 +19,7 @@ export {
     withResubAutoSubscriptions,
     enableAutoSubscribeWrapper,
 } from './AutoSubscriptions';
+export type { KeyArgument, KeyPath, KeyPathSegment } from './AutoSubscriptions';
 export { CustomEqualityShouldComponentUpdate } from './ComponentDecorators';
 export { setPerformanceMarkingEnabled } from './Instrumentation';
 export { default as Options } from './Options';

@@ -33,7 +33,7 @@ describe('resub/state-keypaths', () => {
                 static DevicePGNs = 'devicePGNs';
                 private _state!: {
                     devicePGNs: string[];
-                    devices: Record<string, { pgns: string[] }>;
+                    devices: Record<string, { pgns: string[]; status: string }>;
                 };
 
                 @autoSubscribeWithKey(DeviceStore.DevicePGNs)
@@ -50,6 +50,14 @@ describe('resub/state-keypaths', () => {
                 @key(0)
                 getDevicePGNs(deviceId: string) {
                     return this._state.devices[deviceId].pgns;
+                }
+
+                @autoSubscribeWithKey(
+                    keyPath('devices', keyArg(0), 'pgns'),
+                    keyPath('devices', keyArg(0), 'status'),
+                )
+                getDeviceDetails(deviceId: string) {
+                    return [this._state.devices[deviceId].pgns, this._state.devices[deviceId].status];
                 }
 
                 setDevicePGNs(deviceId: string, pgns: string[]) {
@@ -71,7 +79,7 @@ describe('resub/state-keypaths', () => {
             class DeviceStore {
                 private _state!: {
                     devicePGNs: string[];
-                    devices: Record<string, { pgns: string[] }>;
+                    devices: Record<string, { pgns: string[]; status: string }>;
                 };
 
                 @autoSubscribeWithKey('devicePgns')
@@ -92,10 +100,16 @@ describe('resub/state-keypaths', () => {
                 watchWrongKey() {
                     this.subscribe(() => {}, 'missing');
                 }
+
+                @autoSubscribeWithKey(keyPath('devices', keyArg(0), 'pgNs'))
+                getWrongDevicePGNs(deviceId: string) {
+                    return this._state.devices[deviceId].pgns;
+                }
             }
         `);
 
         expect(messages.map(message => message.messageId)).toEqual([
+            'invalidStateKeypath',
             'invalidStateKeypath',
             'invalidStateKeypath',
             'invalidStateKeypath',

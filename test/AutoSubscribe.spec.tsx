@@ -16,7 +16,12 @@ import {
     uniq,
 } from 'lodash';
 
-import { withResubAutoSubscriptions } from '../src/AutoSubscriptions';
+import {
+    enableAutoSubscribeWrapper,
+    keyArg,
+    keyPath,
+    withResubAutoSubscriptions,
+} from '../src/AutoSubscriptions';
 import ComponentBase from '../src/ComponentBase';
 import { StoreBase } from '../src/StoreBase';
 import { formCompoundKey } from '../src/utils';
@@ -437,6 +442,71 @@ function runTests(makeComponent: (props: SimpleProps) => ReactWrapper<SimpleProp
         expect(Component.state('stateChanges')).toEqual(++expectedState);
         expect(Component.instance().buildStateCallCount).toEqual(expectedState);
         expect(Component.state('keyedDataSum')).toEqual(13);
+    });
+
+    it('autoSubscribeWithKey resolves interleaved argument references in key paths', () => {
+        const handle = vi.fn();
+        const read = enableAutoSubscribeWrapper({ handle }, () => {
+            SimpleStoreInstance.getInterleavedKeyPath('radar-1', 'primary');
+        }, undefined);
+
+        read();
+
+        expect(handle).toHaveBeenCalledTimes(1);
+        expect(handle.mock.calls[0][2]).toEqual(formCompoundKey(
+            'radars',
+            'radar-1',
+            'dataSets',
+            'primary',
+            'spokeData',
+        ));
+    });
+
+    it('autoSubscribeWithKey subscribes to every variadic key path', () => {
+        const handle = vi.fn();
+        const read = enableAutoSubscribeWrapper({ handle }, () => {
+            SimpleStoreInstance.getMultipleKeyPaths('radar-1', 'primary');
+        }, undefined);
+
+        read();
+
+        expect(handle.mock.calls.map(call => call[2])).toEqual([
+            formCompoundKey('radars', 'radar-1', 'dataSets', 'primary', 'rangeMeters'),
+            formCompoundKey('radars', 'radar-1', 'spokeRangeMeters'),
+        ]);
+    });
+
+    it('autoSubscribeWithKey accepts multiple fixed keys as variadic arguments', () => {
+        const handle = vi.fn();
+        const read = enableAutoSubscribeWrapper({ handle }, () => {
+            SimpleStoreInstance.getDataVariadicKeyed();
+        }, undefined);
+
+        read();
+
+        expect(handle.mock.calls.map(call => call[2])).toEqual(['A', 'B']);
+    });
+
+    it('key paths distinguish literal numeric segments from numeric argument references', () => {
+        const handle = vi.fn();
+        const read = enableAutoSubscribeWrapper({ handle }, () => {
+            SimpleStoreInstance.getNumericLiteralKeyPath(7);
+        }, undefined);
+
+        read();
+
+        expect(handle.mock.calls[0][2]).toEqual(formCompoundKey('rows', 0, 7));
+    });
+
+    it('validates key path descriptors and runtime argument values', () => {
+        expect(() => keyArg(Number(-1))).toThrow('keyArg argument indexes must be non-negative integers');
+        expect(() => keyArg(Number(1.5))).toThrow('keyArg argument indexes must be non-negative integers');
+        expect(() => keyPath()).toThrow('Must specify at least one segment when using keyPath');
+
+        const read = enableAutoSubscribeWrapper({ handle: vi.fn() }, () => {
+            SimpleStoreInstance.getInterleavedKeyPath('', 'primary');
+        }, undefined);
+        expect(read).toThrow('keyArg argument must be given a non-empty string or number');
     });
 
     it('autoSubscribeWithKey and key - test single-@key compound key Subscriptions', () => {

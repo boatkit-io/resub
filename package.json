@@ -10,7 +10,8 @@
     "build:es2015": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig/cjs.json",
     "build": "pnpm run clean:dist && pnpm run lint && pnpm run build:types && pnpm run build:es2015 && pnpm run build:cjs",
-    "test": "pnpm run clean:dist && vitest run",
+    "test": "pnpm run clean:dist && pnpm run test:types && vitest run",
+    "test:types": "tsc -p tsconfig/type-tests.json",
     "test:watch": "vitest",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"test/**/*.{ts,tsx}\"",
     "lint:fix": "pnpm run lint -- --fix"

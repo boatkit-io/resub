@@ -184,7 +184,36 @@ class TodoList extends ComponentBase<TodoListProps, TodoListState> {
 
 #### Compound-key subscriptions/triggering
 
-Sometimes, either when a single store contains hierarchical data, or when you have more than one parameter to a function that you'd like to have key-based subscriptions to (i.e. a user and a name of an object that the user has), a single key argument isn't good enough. Use `@key(0, 1)` to identify multiple method arguments, and ReSub concatenates them with the `formCompoundKey` function (also exported by ReSub) to form the actual subscription key. You can also combine this with `@autoSubscribeWithKey` to create a compound key made from method arguments plus a fixed suffix. The `@autoSubscribeWithKey` value always goes on the _end_ of the compound key.
+Sometimes a subscription key needs to interleave fixed state-field names with values from a method's arguments. Standard decorators cannot be attached directly to method parameters, so use `keyArg(index)` inside a `keyPath(...)` descriptor:
+
+```typescript
+class RadarStore extends StoreBase {
+    @autoSubscribeWithKey(
+        keyPath('radars', keyArg(0), 'dataSets', keyArg(1), 'spokeData'),
+    )
+    getSpokeData(radarID: string, dataSetKey: string) {
+        return this._state.radars[radarID].dataSets[dataSetKey].spokeData;
+    }
+}
+```
+
+Calling `getSpokeData('radar-1', 'primary')` subscribes to `radars%&radar-1%&dataSets%&primary%&spokeData`. Fixed strings and numbers remain literal path segments, while `keyArg(0)` and `keyArg(1)` look up those positions in the method's runtime argument list. Referenced arguments must exist and be typed as `string` or `number`.
+
+`autoSubscribeWithKey` is variadic, so one getter can subscribe to multiple independent paths:
+
+```typescript
+@autoSubscribeWithKey(
+    keyPath('radars', keyArg(0), 'dataSets', keyArg(1), 'rangeMeters'),
+    keyPath('radars', keyArg(0), 'spokeRangeMeters'),
+)
+getRangeMeters(radarID: string, dataSetKey: string) {
+    // ...
+}
+```
+
+Simple fixed subscriptions retain their shorter form: `@autoSubscribeWithKey('radars')`. Arrays such as `@autoSubscribeWithKey(['boxA', 'boxB'])` also continue to subscribe to multiple fixed keys.
+
+The older `@key(0, 1)` form remains supported for argument-only compound keys and for appending arguments before a fixed `@autoSubscribeWithKey` suffix. New hierarchical state paths should prefer `keyPath`, which can interleave fixed and dynamic segments in their actual order.
 
 To trigger these compound keys, you execute `this.trigger(ReSub.formCompoundKey('key1val', 'key2val', 'autoSubscribeWithKeyval'))` and it will trigger the key to match the autosubscription of your function. `formCompoundKey` does not understand object paths or wildcards; it simply joins the key segments into one exact string. When dynamic method arguments represent map/index values, the fixed string segments should still match fields from the state path.
 
@@ -499,6 +528,6 @@ export default [
 
 `resub/incorrect-state-access` reports `this.state` access from `UNSAFE_componentWillMount` and from methods reachable through `this.method()` calls. Pass additional method names after the severity to check other entry points.
 
-`resub/state-keypaths` requires keys passed to `@autoSubscribeWithKey(...)`, `this.trigger(...)`, and `this.subscribe(..., key)` to match field paths accessed through `this._state` in the same store class. It accepts string and number literals, enum members, static constants, arrays of keys, and `formCompoundKey(...)`. Dynamic key expressions are reported because they cannot be checked. If your store uses a different state field name, configure it with `{ statePropertyName: 'state' }`.
+`resub/state-keypaths` requires keys passed to `@autoSubscribeWithKey(...)`, `this.trigger(...)`, and `this.subscribe(..., key)` to match field paths accessed through `this._state` in the same store class. It accepts string and number literals, enum members, static constants, arrays of keys, `keyPath(...)` descriptors containing `keyArg(...)` references, and `formCompoundKey(...)`. Dynamic key expressions are reported because they cannot be checked. If your store uses a different state field name, configure it with `{ statePropertyName: 'state' }`.
 
 `resub/override-calls-super` requires configured override methods to call the matching `super` method in the top-level statements of the method body.
