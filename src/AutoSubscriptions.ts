@@ -33,7 +33,7 @@
 // the decorator's logic only applies until the end of that method, not the end of yours. This is why that functionality is exposed as a
 // function instead of a decorator.
 
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import Options from './Options';
 import { KeyOrKeys, assert, formCompoundKey, isFunction, isNumber, isString, normalizeKey, normalizeKeys } from './utils';
@@ -667,11 +667,18 @@ export function warnIfAutoSubscribeEnabled<This, Args extends any[], Return>(
 const autoSubscribeHookHandler = {
     handle(self: any, store: StoreBase, key: string) {
         const [ , setter ] = useState();
-        useEffect(() => {
+        const renderedTriggerVersion = useRef(store.getTriggerVersion());
+        renderedTriggerVersion.current = store.getTriggerVersion();
+        useLayoutEffect(() => {
             const token = store.subscribe(() => {
                 // Always trigger a rerender
                 setter({} as any);
             }, key);
+            if (store.getTriggerVersion() !== renderedTriggerVersion.current) {
+                // The store changed after this component rendered but before
+                // its subscription was committed. Catch up immediately.
+                setter({} as any);
+            }
             return () => {
                 store.unsubscribe(token);
             };

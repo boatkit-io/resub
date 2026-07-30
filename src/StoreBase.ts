@@ -39,6 +39,7 @@ export abstract class StoreBase {
     private readonly _autoSubscriptions: Map<string, AutoSubscription[]> = new Map();
 
     private _subTokenNum = 1;
+    private _triggerVersion = 0;
     private readonly _subsByNum: Map<number, {
         key: string;
         callback: SubscriptionCallbackFunction;
@@ -79,6 +80,8 @@ export abstract class StoreBase {
     // If you trigger a specific set of keys, then it will only trigger that specific set of callbacks (and subscriptions marked
     // as "All" keyed).  If the key is all, it will trigger all callbacks.
     protected trigger(keyOrKeys?: KeyOrKeys): void {
+        this._triggerVersion++;
+
         const throttleMs = this._throttleMs !== undefined
             ? this._throttleMs
             : Options.defaultThrottleMs;
@@ -140,6 +143,12 @@ export abstract class StoreBase {
         if (!throttledUntil || bypassBlock) {
             StoreBase._resolveCallbacks();
         }
+    }
+
+    // Lets hook-based subscriptions detect a store change that occurred after
+    // render but before React committed the subscription.
+    getTriggerVersion(): number {
+        return this._triggerVersion;
     }
 
     private static _updateExistingMeta(meta: CallbackMetadata | undefined, throttledUntil: number|undefined, bypassBlock: boolean): void {

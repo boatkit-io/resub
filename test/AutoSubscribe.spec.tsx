@@ -729,6 +729,26 @@ describe('AutoSubscribe', function() {
         expect(SimpleStoreInstance.test_getSubscriptions().has('A')).toEqual(false);
     });
 
+    it('Hook subscription catches a store change during commit', function() {
+        SimpleStoreInstance = new SimpleStore();
+
+        let changedDuringCommit = false;
+        const mutateStoreDuringCommit = (element: HTMLSpanElement | null): void => {
+            if (element && !changedDuringCommit) {
+                changedDuringCommit = true;
+                SimpleStoreInstance.setStoreDataForKeyedSubscription('A', 3);
+            }
+        };
+        function FuncComp(): JSX.Element {
+            const val = SimpleStoreInstance.getDataSingleKeyed();
+            return <span ref={ mutateStoreDuringCommit }>{ val.toString() }</span>;
+        }
+        const WrappedFuncComp = withResubAutoSubscriptions(FuncComp);
+
+        const container = renderComponent(<WrappedFuncComp />);
+        expect(container.text()).toEqual('3');
+    });
+
     it('Throw when called from render function without wrapping', function() {
         SimpleStoreInstance = new SimpleStore();
 
